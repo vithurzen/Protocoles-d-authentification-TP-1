@@ -9,6 +9,8 @@ const reportsRouter = require('./routes/reports')
 const meRouter = require('./routes/me')
 const registerRouter = require('./routes/register')
 const session = require('express-session')
+require('dotenv').config()
+
 
 // Créé du serveur Express
 const app = express()
@@ -19,9 +21,9 @@ app.use(express.static('public'))
 
 // Lance le serveur en local, sur le port 3000
 const PORT = 3000
-app.listen(PORT, () => {
-  console.log(`Serveur démarré sur http://localhost:${PORT}`)
-})
+
+
+app.use(express.urlencoded({ extended: true }))
 
 app.use(
   session({
@@ -43,3 +45,8 @@ app.use('/api/secrets', secretsRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/me', meRouter);
 app.use('/register', registerRouter);
+
+
+app.listen(PORT, () => {
+  console.log(`Serveur démarré sur http://localhost:${PORT}`)
+})
