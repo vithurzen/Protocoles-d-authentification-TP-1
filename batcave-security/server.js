@@ -8,6 +8,7 @@ const secretsRouter = require('./routes/secrets')
 const reportsRouter = require('./routes/reports')
 const meRouter = require('./routes/me')
 const registerRouter = require('./routes/register')
+const session = require('express-session')
 
 // Créé du serveur Express
 const app = express()
@@ -21,6 +22,20 @@ const PORT = 3000
 app.listen(PORT, () => {
   console.log(`Serveur démarré sur http://localhost:${PORT}`)
 })
+
+app.use(
+  session({
+    name: 'bat_identity', // Nom du cookie
+    secret: process.env.SESSION_SECRET, // Clé pour chiffrer le cookie
+    resave: false, // Ne sauvegarde que si la session change
+    saveUninitialized: false, // Pas de session vide pour les anonymes
+    cookie: {
+      httpOnly: true,
+      sameSite: 'strict',
+      maxAge: 1800000 // Expiration en millisecondes (1h)
+    }
+  })
+)
 
 app.use('/auth', authRouter);
 app.use('/bat-computer', batComputerRouter);
