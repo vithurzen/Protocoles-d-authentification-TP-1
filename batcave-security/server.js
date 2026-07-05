@@ -96,3 +96,25 @@ app.get('/api/secrets', checkAuth, (req, res) => {
   ]
   res.json(gadgets)
 })
+
+app.get('/api/me', checkAuth, (req, res) => {
+  const {id, username} = req.user
+  res.json({id, username})
+})
+
+app.post('/api/reports', checkAuth, (req, res) => {
+  const {note} = req.body
+  if (!note) {
+    return res.status(400).send('Le champ "note" est requis.')
+  }
+
+  const result = db.prepare('INSERT INTO reports (user_id, note) VALUES (?, ?)').run(req.user.id, note)
+  res.status(201).json({
+    message: 'Rapport enregistré avec succès',
+    report: {
+      id: result.lastInsertRowid,
+      user_id: req.user.id,
+      note
+    }
+  })
+} )
