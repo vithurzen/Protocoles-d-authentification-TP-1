@@ -1,7 +1,16 @@
 // Import des librairies et de la BDD
 const express = require('express')
 const bcrypt = require('bcrypt')
-const db = require('./db')
+const db = require('./config/db')
+const authRouter = require('./routes/auth')
+const batComputerRouter = require('./routes/batComputer')
+const secretsRouter = require('./routes/secrets')
+const reportsRouter = require('./routes/reports')
+const meRouter = require('./routes/me')
+const registerRouter = require('./routes/register')
+const session = require('express-session')
+require('dotenv').config()
+
 
 // Créé du serveur Express
 const app = express()
@@ -12,109 +21,32 @@ app.use(express.static('public'))
 
 // Lance le serveur en local, sur le port 3000
 const PORT = 3000
+
+
+app.use(express.urlencoded({ extended: true }))
+
+app.use(
+  session({
+    name: 'bat_identity', // Nom du cookie
+    secret: process.env.SESSION_SECRET, // Clé pour chiffrer le cookie
+    resave: false, // Ne sauvegarde que si la session change
+    saveUninitialized: false, // Pas de session vide pour les anonymes
+    cookie: {
+      httpOnly: true,
+      sameSite: 'strict',
+      maxAge: 1800000 // Expiration en millisecondes (1h)
+    }
+  })
+)
+
+app.use('/auth', authRouter);
+app.use('/bat-computer', batComputerRouter);
+app.use('/api/secrets', secretsRouter);
+app.use('/api/reports', reportsRouter);
+app.use('/api/me', meRouter);
+app.use('/register', registerRouter);
+
+
 app.listen(PORT, () => {
   console.log(`Serveur démarré sur http://localhost:${PORT}`)
 })
-
-app.post('/register', async (req, res) => {
-  // Récupère les identifiants saisis par l'utilisateur
-  const { username, password } = req.body
-  username.trim()
-
-  if (password.length < 8) {
-    return res.status(400).send('Le mot de passe doit contenir au moins 8 caractères.')
-  }
-
-
-  // Hachage du mot de passe avant stockage !
-  const hash = await bcrypt.hash(password, 10)
-
-  try {
-    // Requête SQL pour insérer le nouvel utilisateur en base
-    const insert = db.prepare(
-      'INSERT INTO users (username, password_hash) VALUES (?, ?)'
-    )
-    insert.run(username, hash)
-    res.status(201).send('Utilisateur créé avec succès !')
-  } catch (err) {
-    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-      return res.status(409).send("Ce nom d'utilisateur est déjà utilisé.")
-    }
-    res.status(500).send('Erreur interne du serveur.')
-  }
-})
-
-const checkAuth = async (req, res, next) => {
-  // Récupère l'en-tête pour la vérifier avant d'atteindre les routes protégées
-  const authHeader = req.headers.authorization
-
-  if (!authHeader || !authHeader.startsWith('Basic ')) {
-    // Ajoute l'en-tête pour demander au navigateur d'ouvrir la fenêtre de connexion
-    res.setHeader('WWW-Authenticate', 'Basic realm="Administration"')
-    return res.status(401).send('Authentification requise')
-  }
-  // Décodage du Base64
-  const base64 = authHeader.split(' ')[1]
-  const [username, password] = Buffer.from(base64, 'base64')
-    .toString()
-    .split(':')
-
-  // Vérification en BDD 
-  const user = db
-    .prepare('SELECT * FROM users WHERE username = ?')
-    .get(username)
-  // Comparaison des mots de passe avec bcrypt
-  if (user && (await bcrypt.compare(password, user.password_hash))) {
-    req.user = user // On conserve l'utilisateur dans la requête, si besoin
-    next()
-  } else {
-    return res.status(401).send('Identifiants invalides')
-  }
-}
-
-app.get('/bat-computer', checkAuth, (req, res) => {
-  res.sendFile(__dirname + '/private/bat-computer.html')
-})
-
-app.get('/api/secrets', checkAuth, (req, res) => {
-  const gadgets = [
-    {
-      "name": "Batarang",
-      "desc": "Arme de jet",
-      "icon": "fa-shuriken"
-    },
-    {
-      "name": "Grapnel Gun",
-      "desc": "Pistolet-grappin pour se déplacer rapidement",
-      "icon": "fa-anchor"
-    },
-    {
-      "name": "Smoke Bomb",
-      "desc": "Bombe fumigène pour disparaître discrètement",
-      "icon": "fa-cloud"
-    }
-  ]
-  res.json(gadgets)
-})
-
-app.get('/api/me', checkAuth, (req, res) => {
-  const {id, username} = req.user
-  res.json({id, username})
-})
-
-app.post('/api/reports', checkAuth, (req, res) => {
-  const {note} = req.body
-  if (!note) {
-    return res.status(400).send('Le champ "note" est requis.')
-  }
-
-  const result = db.prepare('INSERT INTO reports (user_id, note) VALUES (?, ?)').run(req.user.id, note)
-  res.status(201).json({
-    message: 'Rapport enregistré avec succès',
-    report: {
-      id: result.lastInsertRowid,
-      user_id: req.user.id,
-      note
-    }
-  })
-} )
