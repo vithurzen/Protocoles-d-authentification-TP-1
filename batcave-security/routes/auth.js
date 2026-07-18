@@ -40,16 +40,37 @@ router.post('/login', async (req, res) => {
   }
 })
 
-router.get('/logout', (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      console.error(err)
-      return res.status(500).send('Erreur lors de la déconnexion')
-    }
+router.post('/refresh', (req, res) => {
+  const refreshToken = req.headers.cookie?.split(';').find(c => c.trim().startsWith('refreshToken='))?.split('=')[1];
+  if (!refreshToken) return res.status(401).json({ erreur: 'Accès refusé' });
 
-    res.clearCookie('bat_identity')
-    res.redirect('/auth/login')
-  })
-})
+  const storedToken = db.prepare('SELECT * FROM refresh_tokens WHERE token = ?').get(refreshToken);
+  
+  if (!storedToken || new Date() > new Date(storedToken?.expires_at)) {
+    return res.status(401).json({ erreur: 'Session expirée, reconnectez-vous' });
+  }
+
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(storedToken.user_id);
+  const newToken = jwt.sign(
+    { id: user.id, email: user.email, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: '15s' }
+  );
+
+  res.cookie('token', newToken, { httpOnly: true, sameSite: 'strict', maxAge: 15000 });
+  res.json({ message: 'Jeton d\'accès rafraîchi.' });
+});
+
+router.post('/logout', (req, res) => {
+  const refreshToken = req.headers.cookie?.split(';').find(c => c.trim().startsWith('refreshToken='))?.split('=')[1];
+  
+  if (refreshToken) {
+    db.prepare('DELETE FROM refresh_tokens WHERE token = ?').run(refreshToken);
+  }
+
+  res.clearCookie('token');
+  res.clearCookie('refreshToken');
+  res.json({ message: 'Déconnexion et révocation réussies.' });
+});
 
 module.exports = router;
