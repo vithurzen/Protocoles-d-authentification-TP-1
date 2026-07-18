@@ -12,7 +12,6 @@ const session = require('express-session')
 const dashboardRouter = require('./routes/dashboard')
 require('dotenv').config()
 
-
 // Créé du serveur Express
 const app = express()
 // Rend possible la lecture et l'écriture du JSON

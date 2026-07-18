@@ -6,6 +6,7 @@ const bcrypt = require('bcrypt');
 const session = require('express-session');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const checkJWT = require('../middlewares/authCheck');
 
 router.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'views', 'login.html'))
@@ -71,6 +72,71 @@ router.post('/logout', (req, res) => {
   res.clearCookie('token');
   res.clearCookie('refreshToken');
   res.json({ message: 'Déconnexion et révocation réussies.' });
+});
+
+router.post('/change-password', checkJWT, async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+
+  if (!oldPassword || !newPassword) {
+    return res.status(400).json({ erreur: 'Ancien et nouveau mots de passe requis' });
+  }
+
+  const strongPasswordRegex =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s]).{12,}$/;
+
+  if (!strongPasswordRegex.test(newPassword)) {
+    return res.status(400).json({
+      erreur:
+        'Le nouveau mot de passe doit contenir au moins 12 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial'
+    });
+  }
+
+   try {
+    const user = db
+      .prepare(`
+        SELECT id, password_hash
+        FROM users
+        WHERE id = ?
+      `)
+      .get(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({
+        erreur: 'Utilisateur introuvable'
+      });
+    }
+
+    const oldPasswordIsValid = await bcrypt.compare(
+      oldPassword,
+      user.password_hash
+    );
+
+    if (!oldPasswordIsValid) {
+      return res.status(401).json({
+        erreur: 'Ancien mot de passe incorrect'
+      });
+    }
+
+    const newPasswordHash = await bcrypt.hash(newPassword, 12);
+
+    const result = db
+      .prepare(`
+        UPDATE users
+        SET password_hash = ?
+        WHERE id = ?
+      `)
+      .run(newPasswordHash, req.user.id);
+
+    return res.json({
+      message: 'Mot de passe modifié avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur changement mot de passe :', error);
+
+    return res.status(500).json({
+      erreur: 'Erreur serveur'
+    });
+  }
 });
 
 module.exports = router;
