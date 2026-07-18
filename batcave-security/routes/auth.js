@@ -52,7 +52,7 @@ router.post('/refresh', (req, res) => {
 
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(storedToken.user_id);
   const newToken = jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
+    { id: user.id, username: user.username, role: user.role },
     process.env.JWT_SECRET,
     { expiresIn: '15s' }
   );

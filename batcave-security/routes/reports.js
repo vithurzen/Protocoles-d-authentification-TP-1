@@ -2,8 +2,9 @@ const express = require('express');
 const router = express.Router();
 const checkAuth = require('../middlewares/checkAuth');
 const db = require('../config/db');
+const checkJWT = require('../middlewares/authCheck');
 
-router.post('/', checkAuth, (req, res) => {
+router.post('/', checkJWT, (req, res) => {
   const {note} = req.body
   if (!note) {
     return res.status(400).send('Le champ "note" est requis.')
