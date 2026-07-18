@@ -17,17 +17,23 @@ async function fetchWithRetry(url, options = {}) {
   return response;
 }
 
-fetchWithRetry('/api/me')
-  .then(res => {
-    if (res) return res.json();
-  })
-  .then(data => {
+async function loadProfile() {
+  try {
+    const res = await fetchWithRetry('/api/me');
+    if (!res) return;
+    const data = await res.json();
     if (data) {
       document.getElementById('user-username').innerText = data.username;
       document.getElementById('user-role').innerText = data.role;
     }
-  })
-  .catch(err => console.error("Erreur d'affichage :", err));
+  } catch (err) {
+    console.error("Erreur d'affichage :", err);
+  }
+}
+
+loadProfile();
+
+document.getElementById('reload-profile-btn').addEventListener('click', loadProfile);
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
   await fetch('/auth/logout', { method: 'POST' });
