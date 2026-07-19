@@ -11,9 +11,13 @@ const registerRouter = require('./routes/register')
 const session = require('express-session')
 const dashboardRouter = require('./routes/dashboard')
 require('dotenv').config()
+const helmet = require('helmet');
+
+
 
 // Créé du serveur Express
 const app = express()
+app.use(helmet());
 // Rend possible la lecture et l'écriture du JSON
 app.use(express.json())
 // Ouvre les fichiers frontend non protégés
