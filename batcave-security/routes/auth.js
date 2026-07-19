@@ -32,7 +32,7 @@ router.post('/login', async (req, res) => {
     db.prepare('INSERT INTO refresh_tokens (token, user_id, expires_at) VALUES (?, ?, ?)')
       .run(refreshToken, user.id, expiresAt);
 
-    res.cookie('token', token, { httpOnly: true, sameSite: 'strict', maxAge: 15000 });
+    res.cookie('token', token, { httpOnly: true, sameSite: 'strict', maxAge: 900000 });
     res.cookie('refreshToken', refreshToken, { httpOnly: true, sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
 
     res.json({ message: 'Connexion réussie.' });
@@ -58,7 +58,7 @@ router.post('/refresh', (req, res) => {
     { expiresIn: '15s' }
   );
 
-  res.cookie('token', newToken, { httpOnly: true, sameSite: 'strict', maxAge: 15000 });
+  res.cookie('token', newToken, { httpOnly: true, sameSite: 'strict', maxAge: 900000 });
   res.json({ message: 'Jeton d\'accès rafraîchi.' });
 });
 
