@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const checkAuth = require('../middlewares/checkAuth');
+const checkJWT = require('../middlewares/authCheck');
 
-router.get('/', checkAuth, (req, res) => {
+router.get('/', checkJWT, (req, res) => {
   const gadgets = [
     {
       "name": "Batarang",

@@ -9,8 +9,8 @@ const reportsRouter = require('./routes/reports')
 const meRouter = require('./routes/me')
 const registerRouter = require('./routes/register')
 const session = require('express-session')
+const dashboardRouter = require('./routes/dashboard')
 require('dotenv').config()
-
 
 // Créé du serveur Express
 const app = express()
@@ -45,6 +45,7 @@ app.use('/api/secrets', secretsRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/me', meRouter);
 app.use('/register', registerRouter);
+app.use('/dashboard', dashboardRouter);
 
 
 app.listen(PORT, () => {
