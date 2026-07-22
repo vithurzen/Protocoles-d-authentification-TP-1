@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="fr-FR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Authentification à double facteurs</title>
+  </head>
+  <body>
+      <h2>1. Connexion</h2>
+      <label for="user">Nom d'utilisateur</label>
+      <input type="text" id="user" placeholder="Nom d'utilisateur" />
+      <label for="pass">Mot de passe</label>
+      <input type="password" id="pass" placeholder="Mot de passe" />
+      <button id="btnLogin" class="btn btn-primary mt-2">Se connecter</button>
+      <div
+        id="zone2FA"
+        style="display: none; margin-top: 20px; background: #f9f9f9; padding: 15px;"
+      >
+        <h3>🔑 Entrez votre code à 6 chiffres</h3>
+        <label for="code2FA">Code à 6 chiffres</label>
+        <input type="text" id="code2FA" placeholder="000000" />
+        <button id="btnVerifyLogin2FA" class="btn btn-primary mt-2">
+          Vérifier le code
+        </button>
+      </div>
+      <hr style="margin: 30px 0" />
+      <h2>2. Activer la 2FA</h2>
+      <button id="btnQR" class="btn btn-primary">Générer le QR Code</button>
+      <div id="qrZone" class="mt-3"></div>
+    <script src="script.js"></script>
+  </body>
+</html>

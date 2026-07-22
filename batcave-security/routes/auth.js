@@ -7,6 +7,9 @@ const session = require('express-session');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const checkJWT = require('../middlewares/authCheck');
+const authController = require('../controllers/authController');
+
+router.post('/setup-2fa', checkJWT, authController.setup2FA);
 
 router.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'views', 'login.html'))
@@ -23,7 +26,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: '15s' }
+      { expiresIn: '15m' }
     );
 
     const refreshToken = crypto.randomBytes(40).toString('hex');
@@ -32,7 +35,7 @@ router.post('/login', async (req, res) => {
     db.prepare('INSERT INTO refresh_tokens (token, user_id, expires_at) VALUES (?, ?, ?)')
       .run(refreshToken, user.id, expiresAt);
 
-    res.cookie('token', token, { httpOnly: true, sameSite: 'strict', maxAge: 900000 });
+    res.cookie('token', token, { httpOnly: true, sameSite: 'strict', maxAge: 15000 });
     res.cookie('refreshToken', refreshToken, { httpOnly: true, sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
 
     res.json({ message: 'Connexion réussie.' });
@@ -55,10 +58,10 @@ router.post('/refresh', (req, res) => {
   const newToken = jwt.sign(
     { id: user.id, username: user.username, role: user.role },
     process.env.JWT_SECRET,
-    { expiresIn: '15s' }
+    { expiresIn: '15m' }
   );
 
-  res.cookie('token', newToken, { httpOnly: true, sameSite: 'strict', maxAge: 900000 });
+  res.cookie('token', newToken, { httpOnly: true, sameSite: 'strict', maxAge: 15000 });
   res.json({ message: 'Jeton d\'accès rafraîchi.' });
 });
 
