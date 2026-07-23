@@ -71,3 +71,29 @@ exports.login = async (req, res) => {
     return res.status(500).json({ error: 'Erreur interne du serveur' })
   }
 }
+
+exports.verify2FA = (req, res) => {
+  const { username, code } = req.body
+  const user = db
+    .prepare('SELECT * FROM users WHERE username = ?')
+    .get(username)
+  if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' })
+
+  const isValid = authenticator.check(code, user.two_factor_secret)
+  if (!isValid) {
+    return res.status(401).json({ error: 'Code 2FA invalide ou expiré' })
+  }
+
+  const token = jwt.sign(
+    { id: user.id, username: user.username },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: '15m'
+    }
+  )
+  res.cookie('token', token, { httpOnly: true, sameSite: 'strict' })
+  res.json({
+    success: true,
+    message: 'Authentification double facteur réussie !'
+  })
+}

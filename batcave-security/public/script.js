@@ -96,3 +96,24 @@ async function login () {
 
 document.getElementById('btnLogin').addEventListener('click', login)
 document.getElementById('btnQR').addEventListener('click', chargeQR)
+
+
+async function valid2FAConnection2FA () {
+  const res = await fetch('/auth/verify-2fa', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      username: currentUsername,
+      code: document.getElementById('code2FA').value
+    })
+  })
+  const data = await res.json()
+
+  if (data.success) {
+    window.location.href = '/dashboard'
+  } else {
+    alert(data.error)
+  }
+}
+
+document.getElementById('btnVerifyLogin2FA').addEventListener('click', valid2FAConnection2FA)

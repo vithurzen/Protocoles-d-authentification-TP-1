@@ -12,6 +12,7 @@ const authController = require('../controllers/authController');
 router.post('/setup-2fa', checkJWT, authController.setup2FA);
 router.post('/confirm-2fa', checkJWT, authController.confirm2FA);
 router.post('/login', authController.login);
+router.post('/verify-2fa', authController.verify2FA);
 
 router.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'views', 'login.html'))
