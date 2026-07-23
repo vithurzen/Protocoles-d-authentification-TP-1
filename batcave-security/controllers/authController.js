@@ -42,3 +42,32 @@ exports.confirm2FA = (req, res) => {
     message: 'La 2FA est désormais activée sur votre compte !'
   })
 }
+
+exports.login = async (req, res) => {
+  try {
+    const { username, password } = req.body
+    const user = db
+      .prepare('SELECT * FROM users WHERE username = ?')
+      .get(username)
+    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+      return res.status(401).json({ error: 'Identifiants incorrects' })
+    }
+
+    if (user.two_factor_enabled === 0 || !user.two_factor_secret) {
+      return res.status(403).json({
+        error: 'Accès refusé. La double authentification est obligatoire.'
+      })
+    }
+
+    if (user.two_factor_enabled === 1) {
+      return res.json({
+        requires2FA: true,
+        message: 'Étape 1 validée. Veuillez fournir votre code à 6 chiffres.',
+        username: user.username
+      })
+    }
+  } catch (error) {
+    console.error('Erreur lors du login :', error)
+    return res.status(500).json({ error: 'Erreur interne du serveur' })
+  }
+}

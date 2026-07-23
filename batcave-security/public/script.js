@@ -73,6 +73,26 @@ async function confirm2FAActivation () {
   const data = await res.json()
 }
 
+async function login () {
+  currentUsername = document.getElementById('user').value
+  const res = await fetch('/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      username: currentUsername,
+      password: document.getElementById('pass').value
+    })
+  })
+  const data = await res.json()
+
+  if (data.requires2FA) {
+    document.getElementById('zone2FA').style.display = 'block'
+  } else if (data.success) {
+    window.location.href = '/dashboard'
+  } else {
+    alert(data.error)
+  }
+}
+
 document.getElementById('btnLogin').addEventListener('click', login)
-document.getElementById('btnVerifyLogin2FA').addEventListener('click', valid2FAConnection2FA)
 document.getElementById('btnQR').addEventListener('click', chargeQR)
