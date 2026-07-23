@@ -43,7 +43,7 @@ app.use(
   })
 )
 
-app.use('/auth', authRouter);
+app.use('/api/auth', authRouter);
 app.use('/bat-computer', batComputerRouter);
 app.use('/api/secrets', secretsRouter);
 app.use('/api/reports', reportsRouter);

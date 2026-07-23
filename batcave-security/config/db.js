@@ -1,14 +1,20 @@
 const Database = require('better-sqlite3');
-const db = new Database('database.db');
+const db = new Database('oauth_demo.db');
 
-// Création de la table avec `username` UNIQUE
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS oauth_sessions (
+    state TEXT PRIMARY KEY,
+    code_verifier TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`).run();
+
 db.prepare(`
   CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE,
-    password_hash TEXT,
-    two_factor_secret TEXT,
-    two_factor_enabled INTEGER DEFAULT 0
+    id TEXT PRIMARY KEY,
+    email TEXT UNIQUE,
+    name TEXT,
+    provider TEXT DEFAULT 'google'
   )
 `).run();
 
