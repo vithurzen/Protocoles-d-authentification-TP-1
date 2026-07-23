@@ -7,39 +7,45 @@ const session = require('express-session');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const checkJWT = require('../middlewares/authCheck');
+const authController = require('../controllers/authController');
+
+router.post('/setup-2fa', checkJWT, authController.setup2FA);
+router.post('/confirm-2fa', checkJWT, authController.confirm2FA);
+router.post('/login', authController.login);
+router.post('/verify-2fa', authController.verify2FA);
 
 router.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'views', 'login.html'))
 })
 
-router.post('/login', async (req, res) => {
-    const { username, password } = req.body;
-  try {
-    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
-    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
-      return res.status(401).json({ erreur: 'Identifiants incorrects' });
-    }
+// router.post('/login', async (req, res) => {
+//     const { username, password } = req.body;
+//   try {
+//     const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+//     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+//       return res.status(401).json({ erreur: 'Identifiants incorrects' });
+//     }
 
-    const token = jwt.sign(
-      { id: user.id, username: user.username, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '15s' }
-    );
+//     const token = jwt.sign(
+//       { id: user.id, username: user.username, role: user.role },
+//       process.env.JWT_SECRET,
+//       { expiresIn: '15m' }
+//     );
 
-    const refreshToken = crypto.randomBytes(40).toString('hex');
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); 
+//     const refreshToken = crypto.randomBytes(40).toString('hex');
+//     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); 
 
-    db.prepare('INSERT INTO refresh_tokens (token, user_id, expires_at) VALUES (?, ?, ?)')
-      .run(refreshToken, user.id, expiresAt);
+//     db.prepare('INSERT INTO refresh_tokens (token, user_id, expires_at) VALUES (?, ?, ?)')
+//       .run(refreshToken, user.id, expiresAt);
 
-    res.cookie('token', token, { httpOnly: true, sameSite: 'strict', maxAge: 15000 });
-    res.cookie('refreshToken', refreshToken, { httpOnly: true, sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
+//     res.cookie('token', token, { httpOnly: true, sameSite: 'strict', maxAge: 15 * 60 * 1000 });
+//     res.cookie('refreshToken', refreshToken, { httpOnly: true, sameSite: 'strict', maxAge: 7 * 24 * 60 * 60 * 1000 });
 
-    res.json({ message: 'Connexion réussie.' });
-  } catch (error) {
-    res.status(500).json({ erreur: 'Erreur serveur' });
-  }
-})
+//     res.json({ message: 'Connexion réussie.' });
+//   } catch (error) {
+//     res.status(500).json({ erreur: 'Erreur serveur' });
+//   }
+// })
 
 router.post('/refresh', (req, res) => {
   const refreshToken = req.headers.cookie?.split(';').find(c => c.trim().startsWith('refreshToken='))?.split('=')[1];
@@ -55,10 +61,10 @@ router.post('/refresh', (req, res) => {
   const newToken = jwt.sign(
     { id: user.id, username: user.username, role: user.role },
     process.env.JWT_SECRET,
-    { expiresIn: '15s' }
+    { expiresIn: '15m' }
   );
 
-  res.cookie('token', newToken, { httpOnly: true, sameSite: 'strict', maxAge: 15000 });
+  res.cookie('token', newToken, { httpOnly: true, sameSite: 'strict', maxAge: 15 * 60 * 1000 });
   res.json({ message: 'Jeton d\'accès rafraîchi.' });
 });
 
