@@ -55,27 +55,22 @@ async function chargeQR () {
                     <p>Scannez ce QR Code avec votre application d'authentification :</p>
                     <img src="${data.qrCode}"><br><br>
                     <input type="text" id="confirmCode" placeholder="Code à 6 chiffres">
-                    <button onclick="confirm2FAActivation()">Confirmer l'activation</button>
+                    <button id="btnConfirm2FA">Confirmer l'activation</button>
                 `
+    document.getElementById('btnConfirm2FA').addEventListener('click', confirm2FAActivation)
   }
 }
 
 async function confirm2FAActivation () {
-  const code = document.getElementById('confirmCode').value
-
-  const res = await fetch('/auth/verify-2fa', {
+  const res = await fetch('/auth/confirm-2fa', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code })
+    body: JSON.stringify({
+      username: currentUsername,
+      code: document.getElementById('confirmCode').value
+    })
   })
   const data = await res.json()
-
-  if (!res.ok) {
-    alert(data.erreur)
-    return
-  }
-
-  document.getElementById('qrZone').innerHTML = `<p>✅ ${data.message}</p>`
 }
 
 document.getElementById('btnLogin').addEventListener('click', login)
