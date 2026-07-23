@@ -1,99 +1,72 @@
-const db = require('../config/db')
-const bcrypt = require('bcrypt')
-const jwt = require('jsonwebtoken')
-const { authenticator } = require('@otplib/preset-v11')
-const qrcode = require('qrcode')
-  
-exports.setup2FA = async (req, res) => {
-  const username = req.body?.username || req.user.username
-  const secret = authenticator.generateSecret()
+const cryptoService = require('../services/cryptoService')
+const oauthService = require('../services/oauthService')
+const userModel = require('../models/userModel')
 
-  const otpauth = authenticator.keyuri(username, 'Secure!', secret)
+async function redirectToGoogle (req, res) {
+  const state = cryptoService.generateState()
+  const codeVerifier = cryptoService.generateCodeVerifier()
+  const codeChallenge = cryptoService.generateCodeChallenge(codeVerifier)
 
-  db.prepare('UPDATE users SET two_factor_secret = ? WHERE username = ?').run(
-    secret,
-    username
-  )
+  // Persistance temporaire de la session PKCE
+  userModel.saveOAuthSession(state, codeVerifier)
 
-  const qrCodeImage = await qrcode.toDataURL(otpauth)
+  // Construction de l'URL via le service dédié
+  const authUrl = oauthService.getGoogleAuthUrl(state, codeChallenge)
 
-  res.json({ qrCode: qrCodeImage, secret: secret })
+  res.redirect(authUrl)
 }
 
-exports.confirm2FA = (req, res) => {
-  const { username, code } = req.body
-  const user = db
-    .prepare('SELECT * FROM users WHERE username = ?')
-    .get(username)
-
-  const isValid = authenticator.check(code, user.two_factor_secret)
-
-  if (!isValid) {
-    return res
-      .status(401)
-      .json({ error: 'Code incorrect. Activation avortée.' })
+async function handleGoogleCallback (req, res) {
+  const { code, state } = req.query
+  const session = userModel.getOAuthSession(state)
+  if (!session) {
+    return res.status(403).send('Invalid state token. Access Denied.')
   }
+  userModel.deleteOAuthSession(state)
 
-  db.prepare('UPDATE users SET two_factor_enabled = 1 WHERE username = ?').run(
-    username
-  )
-  res.json({
-    success: true,
-    message: 'La 2FA est désormais activée sur votre compte !'
-  })
-}
-
-exports.login = async (req, res) => {
   try {
-    const { username, password } = req.body
-    const user = db
-      .prepare('SELECT * FROM users WHERE username = ?')
-      .get(username)
-    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
-      return res.status(401).json({ error: 'Identifiants incorrects' })
-    }
+    const tokens = await oauthService.exchangeCodeForTokens(
+      code,
+      session.code_verifier
+    )
 
-    if (user.two_factor_enabled === 0 || !user.two_factor_secret) {
-      return res.status(403).json({
-        error: 'Accès refusé. La double authentification est obligatoire.'
-      })
-    }
+    const userProfile = oauthService.decodeIdToken(tokens.id_token)
+    userModel.upsertUser(userProfile)
 
-    if (user.two_factor_enabled === 1) {
-      return res.json({
-        requires2FA: true,
-        message: 'Étape 1 validée. Veuillez fournir votre code à 6 chiffres.',
-        username: user.username
-      })
-    }
+    req.session.userId = userProfile.sub // On stocke l'ID unique Google
+    req.session.userName = userProfile.name
+    req.session.userEmail = userProfile.email
+
+    res.redirect('/dashboard')
   } catch (error) {
-    console.error('Erreur lors du login :', error)
-    return res.status(500).json({ error: 'Erreur interne du serveur' })
+    console.error(error)
+    res.status(500).send('Authentication workflow failed.')
   }
 }
 
-exports.verify2FA = (req, res) => {
-  const { username, code } = req.body
-  const user = db
-    .prepare('SELECT * FROM users WHERE username = ?')
-    .get(username)
-  if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' })
-
-  const isValid = authenticator.check(code, user.two_factor_secret)
-  if (!isValid) {
-    return res.status(401).json({ error: 'Code 2FA invalide ou expiré' })
+// Renvoie le profil stocké dans la session (401 si non connecté)
+function getMe (req, res) {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Non authentifié' })
   }
-
-  const token = jwt.sign(
-    { id: user.id, username: user.username },
-    process.env.JWT_SECRET,
-    {
-      expiresIn: '15m'
-    }
-  )
-  res.cookie('token', token, { httpOnly: true, sameSite: 'strict' })
   res.json({
-    success: true,
-    message: 'Authentification double facteur réussie !'
+    id: req.session.userId,
+    name: req.session.userName,
+    email: req.session.userEmail
   })
+}
+
+// Détruit la session côté serveur et supprime le cookie
+function logout (req, res) {
+  req.session.destroy(() => {
+    res.clearCookie('bat_identity')
+    res.json({ message: 'Déconnexion réussie.' })
+  })
+}
+
+module.exports = {
+  redirectToGoogle,
+  handleGoogleCallback,
+  getMe,
+  logout
 }
